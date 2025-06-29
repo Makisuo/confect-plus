@@ -41,6 +41,34 @@ import {
   compileReturnsSchema,
 } from "~/src/server/schema-to-validator";
 
+// Export types for custom function creation
+export type ConfectQueryHandler<
+  ConfectDataModel extends GenericConfectDataModel,
+  ConfectArgs,
+  ConfectReturns,
+  E = never,
+> = (
+  args: ConfectArgs,
+) => Effect.Effect<ConfectReturns, E, ConfectQueryCtx<ConfectDataModel>>;
+
+export type ConfectMutationHandler<
+  ConfectDataModel extends GenericConfectDataModel,
+  ConfectArgs,
+  ConfectReturns,
+  E = never,
+> = (
+  args: ConfectArgs,
+) => Effect.Effect<ConfectReturns, E, ConfectMutationCtx<ConfectDataModel>>;
+
+export type ConfectActionHandler<
+  ConfectDataModel extends GenericConfectDataModel,
+  ConfectArgs,
+  ConfectReturns,
+  E = never,
+> = (
+  args: ConfectArgs,
+) => Effect.Effect<ConfectReturns, E, ConfectActionCtx<ConfectDataModel>>;
+
 export const makeFunctions = <ConfectSchema extends GenericConfectSchema>(
   confectSchemaDefinition: ConfectSchemaDefinition<ConfectSchema>,
 ) => {
@@ -201,6 +229,60 @@ export const makeFunctions = <ConfectSchema extends GenericConfectSchema>(
     internalMutation,
     action,
     internalAction,
+  };
+};
+
+export const makeGenericFunctions = <
+  ConfectSchema extends GenericConfectSchema,
+>(
+  confectSchemaDefinition: ConfectSchemaDefinition<ConfectSchema>,
+) => {
+  const databaseSchemas = databaseSchemasFromConfectSchema(
+    confectSchemaDefinition.confectSchema,
+  );
+
+  return {
+    queryGeneric,
+    mutationGeneric,
+    actionGeneric,
+    internalQueryGeneric,
+    internalMutationGeneric,
+    internalActionGeneric,
+    confectQueryFunction: <
+      ConvexArgs extends DefaultFunctionArgs,
+      ConfectArgs,
+      ConvexReturns,
+      ConfectReturns,
+      E,
+    >(params: {
+      args: Schema.Schema<ConfectArgs, ConvexArgs>;
+      returns: Schema.Schema<ConfectReturns, ConvexReturns>;
+      handler: (
+        a: ConfectArgs,
+      ) => Effect.Effect<
+        ConfectReturns,
+        E,
+        ConfectQueryCtx<ConfectDataModelFromConfectSchema<ConfectSchema>>
+      >;
+    }) => confectQueryFunction({ ...params, databaseSchemas }),
+    confectMutationFunction: <
+      ConvexValue extends DefaultFunctionArgs,
+      ConfectValue,
+      ConvexReturns,
+      ConfectReturns,
+      E,
+    >(params: {
+      args: Schema.Schema<ConfectValue, ConvexValue>;
+      returns: Schema.Schema<ConfectReturns, ConvexReturns>;
+      handler: (
+        a: ConfectValue,
+      ) => Effect.Effect<
+        ConfectReturns,
+        E,
+        ConfectMutationCtx<ConfectDataModelFromConfectSchema<ConfectSchema>>
+      >;
+    }) => confectMutationFunction({ ...params, databaseSchemas }),
+    confectActionFunction,
   };
 };
 

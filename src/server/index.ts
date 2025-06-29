@@ -11,7 +11,13 @@ export type {
 
 export { NotUniqueError } from "~/src/server/database";
 
-export { makeFunctions } from "~/src/server/functions";
+export {
+  makeFunctions,
+  makeGenericFunctions,
+  type ConfectQueryHandler,
+  type ConfectMutationHandler,
+  type ConfectActionHandler,
+} from "~/src/server/functions";
 
 export {
   defineSchema,
