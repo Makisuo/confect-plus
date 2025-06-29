@@ -241,48 +241,76 @@ export const makeGenericFunctions = <
     confectSchemaDefinition.confectSchema,
   );
 
+  type DataModel = ConfectDataModelFromConfectSchema<ConfectSchema>;
+
+  // Type-preserving query builder
+  const buildQuery = <
+    ConvexArgs extends DefaultFunctionArgs,
+    ConfectArgs,
+    ConvexReturns,
+    ConfectReturns,
+    E = never,
+  >(params: {
+    args: Schema.Schema<ConfectArgs, ConvexArgs>;
+    returns: Schema.Schema<ConfectReturns, ConvexReturns>;
+    handler: (
+      a: ConfectArgs,
+    ) => Effect.Effect<ConfectReturns, E, ConfectQueryCtx<DataModel>>;
+  }) => confectQueryFunction({ ...params, databaseSchemas });
+
+  // Type-preserving mutation builder
+  const buildMutation = <
+    ConvexArgs extends DefaultFunctionArgs,
+    ConfectArgs,
+    ConvexReturns,
+    ConfectReturns,
+    E = never,
+  >(params: {
+    args: Schema.Schema<ConfectArgs, ConvexArgs>;
+    returns: Schema.Schema<ConfectReturns, ConvexReturns>;
+    handler: (
+      a: ConfectArgs,
+    ) => Effect.Effect<ConfectReturns, E, ConfectMutationCtx<DataModel>>;
+  }) => confectMutationFunction({ ...params, databaseSchemas });
+
+  // Type-preserving action builder
+  const buildAction = <
+    ConvexArgs extends DefaultFunctionArgs,
+    ConfectArgs,
+    ConvexReturns,
+    ConfectReturns,
+    E = never,
+  >(params: {
+    args: Schema.Schema<ConfectArgs, ConvexArgs>;
+    returns: Schema.Schema<ConfectReturns, ConvexReturns>;
+    handler: (
+      a: ConfectArgs,
+    ) => Effect.Effect<ConfectReturns, E, ConfectActionCtx<DataModel>>;
+  }) => confectActionFunction(params);
+
   return {
+    // Core Convex function builders
     queryGeneric,
     mutationGeneric,
     actionGeneric,
     internalQueryGeneric,
     internalMutationGeneric,
     internalActionGeneric,
-    confectQueryFunction: <
-      ConvexArgs extends DefaultFunctionArgs,
-      ConfectArgs,
-      ConvexReturns,
-      ConfectReturns,
-      E,
-    >(params: {
-      args: Schema.Schema<ConfectArgs, ConvexArgs>;
-      returns: Schema.Schema<ConfectReturns, ConvexReturns>;
-      handler: (
-        a: ConfectArgs,
-      ) => Effect.Effect<
-        ConfectReturns,
-        E,
-        ConfectQueryCtx<ConfectDataModelFromConfectSchema<ConfectSchema>>
-      >;
-    }) => confectQueryFunction({ ...params, databaseSchemas }),
-    confectMutationFunction: <
-      ConvexValue extends DefaultFunctionArgs,
-      ConfectValue,
-      ConvexReturns,
-      ConfectReturns,
-      E,
-    >(params: {
-      args: Schema.Schema<ConfectValue, ConvexValue>;
-      returns: Schema.Schema<ConfectReturns, ConvexReturns>;
-      handler: (
-        a: ConfectValue,
-      ) => Effect.Effect<
-        ConfectReturns,
-        E,
-        ConfectMutationCtx<ConfectDataModelFromConfectSchema<ConfectSchema>>
-      >;
-    }) => confectMutationFunction({ ...params, databaseSchemas }),
-    confectActionFunction,
+
+    // Type-preserving Confect function builders
+    buildQuery,
+    buildMutation,
+    buildAction,
+
+    // Context service tags for use in custom handlers
+    QueryCtx: ConfectQueryCtx<DataModel>,
+    MutationCtx: ConfectMutationCtx<DataModel>, 
+    ActionCtx: ConfectActionCtx<DataModel>,
+
+    // Legacy builders (for backwards compatibility)
+    confectQueryFunction: buildQuery,
+    confectMutationFunction: buildMutation,
+    confectActionFunction: buildAction,
   };
 };
 

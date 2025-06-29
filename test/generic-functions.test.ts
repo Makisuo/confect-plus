@@ -1,163 +1,137 @@
 import { describe, expect } from "@effect/vitest";
 import { Effect, Schema } from "effect";
+import type { DefaultFunctionArgs } from "convex/server";
 
-import { 
-  makeGenericFunctions, 
-  type ConfectQueryHandler,
-  type ConfectMutationHandler,
-} from "~/src/server/functions";
+import { makeGenericFunctions } from "~/src/server/functions";
 import { test } from "~/test/convex-effect-test";
 import { confectSchema } from "~/test/convex/schema";
-
-// Example data model patterns for testing - blog/social media app structure:
-// - users: { username, email, role: "admin" | "user" | "moderator" }
-// - posts: { title, content, authorId, published, tags[] }
-// - comments: { postId, authorId, content, approved }
+import { Id } from "~/src/server/schemas/Id";
 
 describe("makeGenericFunctions", () => {
-  test("should export all generic function builders", () =>
+  test("should export all generic function builders with proper types", () =>
     Effect.gen(function* () {
       const genericFunctions = makeGenericFunctions(confectSchema);
       
+      // Core Convex builders
       expect(genericFunctions).toHaveProperty('queryGeneric');
       expect(genericFunctions).toHaveProperty('mutationGeneric');
       expect(genericFunctions).toHaveProperty('actionGeneric');
       expect(genericFunctions).toHaveProperty('internalQueryGeneric');
       expect(genericFunctions).toHaveProperty('internalMutationGeneric');
       expect(genericFunctions).toHaveProperty('internalActionGeneric');
-      expect(genericFunctions).toHaveProperty('confectQueryFunction');
-      expect(genericFunctions).toHaveProperty('confectMutationFunction');
-      expect(genericFunctions).toHaveProperty('confectActionFunction');
+      
+      // Enhanced type-safe builders
+      expect(genericFunctions).toHaveProperty('buildQuery');
+      expect(genericFunctions).toHaveProperty('buildMutation');
+      expect(genericFunctions).toHaveProperty('buildAction');
+      
+      // Context tags
+      expect(genericFunctions).toHaveProperty('QueryCtx');
+      expect(genericFunctions).toHaveProperty('MutationCtx');
+      expect(genericFunctions).toHaveProperty('ActionCtx');
       
       // Verify they are functions
       expect(typeof genericFunctions.queryGeneric).toBe('function');
-      expect(typeof genericFunctions.confectQueryFunction).toBe('function');
-      expect(typeof genericFunctions.confectMutationFunction).toBe('function');
+      expect(typeof genericFunctions.buildQuery).toBe('function');
+      expect(typeof genericFunctions.buildMutation).toBe('function');
     }));
 
-  test("should create confectQueryFunction builder", () =>
+  test("should create type-safe query builder", () =>
     Effect.gen(function* () {
-      const { confectQueryFunction } = makeGenericFunctions(confectSchema);
+      const { buildQuery } = makeGenericFunctions(confectSchema);
 
-      // Test that we can create a basic confect query function
-      const basicQueryBuilder = confectQueryFunction({
-        args: Schema.Struct({ 
-          message: Schema.String,
-        }),
-        returns: Schema.Struct({ 
-          response: Schema.String,
-        }),
-        handler: ({ message }) =>
+      // Define strongly typed schemas
+      const EchoArgs = Schema.Struct({ 
+        message: Schema.String,
+        count: Schema.Number,
+      });
+      
+      const EchoReturns = Schema.Struct({ 
+        response: Schema.String,
+        timestamp: Schema.Number,
+        repeated: Schema.Array(Schema.String),
+      });
+
+      // Test that we can create a properly typed query function
+      const echoQueryBuilder = buildQuery({
+        args: EchoArgs,
+        returns: EchoReturns,
+        handler: ({ message, count }) =>
           Effect.succeed({
             response: `Echo: ${message}`,
+            timestamp: Date.now(),
+            repeated: Array(count).fill(message),
           }),
       });
 
       // Verify the builder returns a proper structure
-      expect(basicQueryBuilder).toHaveProperty('args');
-      expect(basicQueryBuilder).toHaveProperty('returns');
-      expect(basicQueryBuilder).toHaveProperty('handler');
-      expect(typeof basicQueryBuilder.handler).toBe('function');
+      expect(echoQueryBuilder).toHaveProperty('args');
+      expect(echoQueryBuilder).toHaveProperty('returns');
+      expect(echoQueryBuilder).toHaveProperty('handler');
+      expect(typeof echoQueryBuilder.handler).toBe('function');
     }));
 
-  test("should create confectMutationFunction builder", () =>
+  test("should create type-safe mutation builder", () =>
     Effect.gen(function* () {
-      const { confectMutationFunction } = makeGenericFunctions(confectSchema);
+      const { buildMutation } = makeGenericFunctions(confectSchema);
 
-      // Test that we can create a basic confect mutation function
-      const basicMutationBuilder = confectMutationFunction({
-        args: Schema.Struct({ 
-          text: Schema.String,
-        }),
-        returns: Schema.Struct({ 
-          id: Schema.String,
-        }),
-        handler: ({ text }) =>
+      // Define strongly typed schemas for creating a note
+      const CreateNoteArgs = Schema.Struct({ 
+        text: Schema.String,
+        tag: Schema.optional(Schema.String),
+      });
+      
+      const CreateNoteReturns = Schema.Struct({ 
+        id: Id("notes"),
+        text: Schema.String,
+        length: Schema.Number,
+      });
+
+      // Test that we can create a properly typed mutation function  
+      const createNoteMutationBuilder = buildMutation({
+        args: CreateNoteArgs,
+        returns: CreateNoteReturns,
+        handler: ({ text, tag }) =>
           Effect.succeed({
-            id: `note-${text.length}-${Date.now()}`,
+            id: `note_${Date.now()}` as any, // Simplified for test
+            text: tag ? `${text} #${tag}` : text,
+            length: text.length,
           }),
       });
 
       // Verify the builder returns a proper structure
-      expect(basicMutationBuilder).toHaveProperty('args');
-      expect(basicMutationBuilder).toHaveProperty('returns');
-      expect(basicMutationBuilder).toHaveProperty('handler');
-      expect(typeof basicMutationBuilder.handler).toBe('function');
+      expect(createNoteMutationBuilder).toHaveProperty('args');
+      expect(createNoteMutationBuilder).toHaveProperty('returns');
+      expect(createNoteMutationBuilder).toHaveProperty('handler');
+      expect(typeof createNoteMutationBuilder.handler).toBe('function');
     }));
 
-  test("demonstrates how to create custom userQuery pattern", () =>
+  test("demonstrates how users can create custom query patterns", () =>
     Effect.gen(function* () {
-      const { queryGeneric, confectQueryFunction } = makeGenericFunctions(confectSchema);
+      const { queryGeneric, buildQuery } = makeGenericFunctions(confectSchema);
 
-      // Example of how users would create their own userQuery function
-      const createUserQuery = <Args, Returns>({
-        args,
-        returns,
-        handler,
-      }: {
-        args: Schema.Schema<Args, any>;
-        returns: Schema.Schema<Returns, any>;
-        handler: ConfectQueryHandler<any, Args, Returns>;
-      }) =>
-        queryGeneric(
-          confectQueryFunction({
-            args,
-            returns,
-            handler: (a: Args) =>
-              Effect.gen(function* () {
-                // This is where auth checking would happen in a real implementation:
-                // const ctx = yield* ConfectQueryCtx();
-                // const userIdentity = yield* ctx.auth.getUserIdentity();
-                // if (Option.isNone(userIdentity)) {
-                //   return yield* Effect.fail(new Error("Unauthorized"));
-                // }
-                
-                // For demonstration, we just proceed with the handler
-                return yield* handler(a);
-              }),
-          }),
-        );
-
-      // Test creating a user query
-      const getUserProfile = createUserQuery({
-        args: Schema.Struct({ userId: Schema.String }),
-        returns: Schema.Struct({ 
-          username: Schema.String,
-          role: Schema.String,
-        }),
-        handler: ({ userId }) =>
-          Effect.succeed({
-            username: `user-${userId}`,
-            role: "user",
-          }),
-      });
-
-      // Verify the structure
-      expect(getUserProfile).toBeDefined();
-      expect(typeof getUserProfile).toBe('function');
-    }));
-
-  test("demonstrates how to create custom validatedMutation pattern", () =>
-    Effect.gen(function* () {
-      const { mutationGeneric, confectMutationFunction } = makeGenericFunctions(confectSchema);
-
-      // Example of how users would create their own validatedMutation function  
-      const createValidatedMutation = <Args, Returns>({
+      // Example: Create a custom query factory with input validation
+      const createValidatedQuery = <
+        ConvexArgs extends DefaultFunctionArgs,
+        ConfectArgs,
+        ConvexReturns,
+        ConfectReturns
+      >({
         args,
         returns,
         handler,
         validate,
       }: {
-        args: Schema.Schema<Args, any>;
-        returns: Schema.Schema<Returns, any>;
-        handler: ConfectMutationHandler<any, Args, Returns>;
-        validate: (args: Args) => Effect.Effect<void, Error>;
+        args: Schema.Schema<ConfectArgs, ConvexArgs>;
+        returns: Schema.Schema<ConfectReturns, ConvexReturns>;
+        handler: (a: ConfectArgs) => Effect.Effect<ConfectReturns>;
+        validate: (args: ConfectArgs) => Effect.Effect<void, Error>;
       }) =>
-        mutationGeneric(
-          confectMutationFunction({
+        queryGeneric(
+          buildQuery({
             args,
             returns,
-            handler: (a: Args) =>
+            handler: (a: ConfectArgs) =>
               Effect.gen(function* () {
                 // Run validation first
                 yield* validate(a);
@@ -168,131 +142,224 @@ describe("makeGenericFunctions", () => {
           }),
         );
 
-      // Test creating a validated mutation
-      const createPost = createValidatedMutation({
-        args: Schema.Struct({ 
-          title: Schema.String,
-          content: Schema.String,
-        }),
-        returns: Schema.Struct({ 
-          id: Schema.String,
-          title: Schema.String,
-        }),
-        handler: ({ title, content }) =>
+      // Define typed schemas
+      const SearchArgs = Schema.Struct({ 
+        query: Schema.String,
+        limit: Schema.Number,
+      });
+      
+      const SearchReturns = Schema.Struct({ 
+        results: Schema.Array(Schema.String),
+        total: Schema.Number,
+      });
+
+      // Test creating a custom validated query
+      const searchQuery = createValidatedQuery({
+        args: SearchArgs,
+        returns: SearchReturns,
+        handler: ({ query, limit }) =>
           Effect.succeed({
-            id: `post-${title.length}-${content.length}-${Date.now()}`,
-            title,
+            results: [`Result for "${query}" #1`, `Result for "${query}" #2`].slice(0, limit),
+            total: 2,
           }),
-        validate: ({ title, content }) =>
+        validate: ({ query, limit }) =>
           Effect.gen(function* () {
-            if (title.length < 3) {
-              return yield* Effect.fail(new Error("Title too short"));
+            if (query.length < 2) {
+              return yield* Effect.fail(new Error("Query must be at least 2 characters"));
             }
-            if (content.length < 10) {
-              return yield* Effect.fail(new Error("Content too short"));
+            if (limit < 1 || limit > 100) {
+              return yield* Effect.fail(new Error("Limit must be between 1 and 100"));
             }
           }),
       });
 
       // Verify the structure
-      expect(createPost).toBeDefined();
-      expect(typeof createPost).toBe('function');
+      expect(searchQuery).toBeDefined();
+      expect(typeof searchQuery).toBe('function');
     }));
 
-  test("demonstrates practical usage examples", () =>
+  test("demonstrates how users can create custom mutation patterns", () =>
     Effect.gen(function* () {
-      const { queryGeneric, mutationGeneric, confectQueryFunction, confectMutationFunction } = makeGenericFunctions(confectSchema);
+      const { mutationGeneric, buildMutation } = makeGenericFunctions(confectSchema);
 
-      // 1. Role-based access control pattern
-      const createAdminOnlyMutation = <Args, Returns>({
+      // Example: Create a custom mutation factory with authorization simulation
+      const createAuthorizedMutation = <
+        ConvexArgs extends DefaultFunctionArgs,
+        ConfectArgs,
+        ConvexReturns,
+        ConfectReturns
+      >({
         args,
         returns,
         handler,
+        checkAuth,
       }: {
-        args: Schema.Schema<Args, any>;
-        returns: Schema.Schema<Returns, any>;
-        handler: ConfectMutationHandler<any, Args, Returns>;
+        args: Schema.Schema<ConfectArgs, ConvexArgs>;
+        returns: Schema.Schema<ConfectReturns, ConvexReturns>;
+        handler: (a: ConfectArgs, userId: string) => Effect.Effect<ConfectReturns>;
+        checkAuth: (args: ConfectArgs) => Effect.Effect<string, Error>; // returns userId
       }) =>
         mutationGeneric(
-          confectMutationFunction({
+          buildMutation({
             args,
             returns,
-            handler: (a: Args) =>
+            handler: (a: ConfectArgs) =>
               Effect.gen(function* () {
-                // In a real app, you'd check user role here
-                // const ctx = yield* ConfectMutationCtx();
-                // const userIdentity = yield* ctx.auth.getUserIdentity();
-                // ... role checking logic ...
+                // Check authorization and get user ID
+                const userId = yield* checkAuth(a);
                 
-                return yield* handler(a);
+                // Run the handler with the user ID
+                return yield* handler(a, userId);
               }),
           }),
         );
 
-      // 2. Resource ownership pattern
-      const createOwnerOnlyQuery = <Args, Returns>({
-        args,
-        returns,
-        handler,
-        checkOwnership,
+      // Define typed schemas for updating user profile
+      const UpdateProfileArgs = Schema.Struct({ 
+        username: Schema.String,
+        email: Schema.String,
+      });
+      
+      const UpdateProfileReturns = Schema.Struct({ 
+        success: Schema.Boolean,
+        updatedFields: Schema.Array(Schema.String),
+      });
+
+      // Test creating a custom authorized mutation
+      const updateProfile = createAuthorizedMutation({
+        args: UpdateProfileArgs,
+        returns: UpdateProfileReturns,
+        handler: ({ username, email }, userId) =>
+          Effect.succeed({
+            success: true,
+            updatedFields: [`username:${username}`, `email:${email}`, `userId:${userId}`],
+          }),
+        checkAuth: ({ email }) =>
+          Effect.gen(function* () {
+            if (!email.includes('@')) {
+              return yield* Effect.fail(new Error("Invalid email format"));
+            }
+            // Simulate extracting user ID from email
+            return `user_${email.split('@')[0]}`;
+          }),
+      });
+
+      // Verify the structure
+      expect(updateProfile).toBeDefined();
+      expect(typeof updateProfile).toBe('function');
+    }));
+
+  test("demonstrates real-world usage patterns with full type safety", () =>
+    Effect.gen(function* () {
+      const { queryGeneric, mutationGeneric, buildQuery, buildMutation } = makeGenericFunctions(confectSchema);
+
+      // 1. Pagination helper
+      const createPaginatedQuery = <T>({
+        itemSchema,
+        fetchItems,
       }: {
-        args: Schema.Schema<Args, any>;
-        returns: Schema.Schema<Returns, any>;
-        handler: ConfectQueryHandler<any, Args, Returns>;
-        checkOwnership: (args: Args, userId: string) => Effect.Effect<boolean, Error>;
-      }) =>
-        queryGeneric(
-          confectQueryFunction({
-            args,
-            returns,
-            handler: (a: Args) =>
+        itemSchema: Schema.Schema<T>;
+        fetchItems: (offset: number, limit: number) => Effect.Effect<T[]>;
+      }) => {
+        const PaginationArgs = Schema.Struct({
+          offset: Schema.Number,
+          limit: Schema.Number,
+        });
+
+        const PaginationReturns = Schema.Struct({
+          items: Schema.Array(itemSchema),
+          hasMore: Schema.Boolean,
+          total: Schema.Number,
+        });
+
+        return queryGeneric(
+          buildQuery({
+            args: PaginationArgs,
+            returns: PaginationReturns,
+            handler: ({ offset, limit }) =>
               Effect.gen(function* () {
-                // In a real app:
-                // const ctx = yield* ConfectQueryCtx();
-                // const userIdentity = yield* ctx.auth.getUserIdentity();
-                // const userId = userIdentity.value.subject;
-                // const ownsResource = yield* checkOwnership(a, userId);
-                // if (!ownsResource) throw new Error("Forbidden");
-                
-                // For demo purposes, just use checkOwnership to avoid linting error
-                void checkOwnership;
-                return yield* handler(a);
+                const items = yield* fetchItems(offset, limit);
+                return {
+                  items,
+                  hasMore: items.length === limit,
+                  total: offset + items.length,
+                };
               }),
           }),
         );
+      };
 
-      // 3. Rate limiting pattern
-      const createRateLimitedMutation = <Args, Returns>({
-        args,
-        returns,
-        handler,
-        rateLimitKey,
+      // 2. Batch operation helper
+      const createBatchMutation = <T, R>({
+        itemSchema,
+        resultSchema,
+        processItem,
       }: {
-        args: Schema.Schema<Args, any>;
-        returns: Schema.Schema<Returns, any>;
-        handler: ConfectMutationHandler<any, Args, Returns>;
-        rateLimitKey: (args: Args) => string;
-      }) =>
-        mutationGeneric(
-          confectMutationFunction({
-            args,
-            returns,
-            handler: (a: Args) =>
+        itemSchema: Schema.Schema<T>;
+        resultSchema: Schema.Schema<R>;
+        processItem: (item: T) => Effect.Effect<R>;
+      }) => {
+        const BatchArgs = Schema.Struct({
+          items: Schema.Array(itemSchema),
+        });
+
+        const BatchReturns = Schema.Struct({
+          results: Schema.Array(resultSchema),
+          processed: Schema.Number,
+        });
+
+        return mutationGeneric(
+          buildMutation({
+            args: BatchArgs,
+            returns: BatchReturns,
+            handler: ({ items }) =>
               Effect.gen(function* () {
-                // In a real app, you'd check rate limits here
-                // const key = rateLimitKey(a);
-                // ... rate limiting logic ...
-                
-                // For demo purposes, just use rateLimitKey to avoid linting error
-                void rateLimitKey;
-                return yield* handler(a);
+                const results: R[] = [];
+                for (const item of items) {
+                  const result = yield* processItem(item);
+                  results.push(result);
+                }
+                return {
+                  results,
+                  processed: results.length,
+                };
               }),
           }),
         );
+      };
 
-      // Verify all patterns can be created
-      expect(typeof createAdminOnlyMutation).toBe('function');
-      expect(typeof createOwnerOnlyQuery).toBe('function');
-      expect(typeof createRateLimitedMutation).toBe('function');
+      // Test using the helpers
+      const NoteItem = Schema.Struct({
+        text: Schema.String,
+        tag: Schema.optional(Schema.String),
+      });
+
+      const ProcessedNote = Schema.Struct({
+        id: Schema.String,
+        wordCount: Schema.Number,
+      });
+
+      const paginatedNotes = createPaginatedQuery({
+        itemSchema: NoteItem,
+        fetchItems: (offset, limit) =>
+          Effect.succeed([
+            { text: `Note ${offset + 1}`, tag: "test" },
+            { text: `Note ${offset + 2}` },
+          ].slice(0, limit)),
+      });
+
+      const batchProcessNotes = createBatchMutation({
+        itemSchema: NoteItem,
+        resultSchema: ProcessedNote,
+        processItem: (item) =>
+          Effect.succeed({
+            id: `processed_${Date.now()}`,
+            wordCount: item.text.split(' ').length,
+          }),
+      });
+
+      // Verify both patterns work
+      expect(typeof paginatedNotes).toBe('function');
+      expect(typeof batchProcessNotes).toBe('function');
     }));
 });
