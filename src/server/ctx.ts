@@ -44,6 +44,16 @@ export type ConfectMutationCtx<
   auth: ConfectAuth;
   storage: ConfectStorageWriter;
   scheduler: ConfectScheduler;
+  runQuery<Query extends FunctionReference<"query", "public" | "internal">>(
+    query: Query,
+    ...args: OptionalRestArgs<Query>
+  ): Effect.Effect<FunctionReturnType<Query>>;
+  runMutation<
+    Mutation extends FunctionReference<"mutation", "public" | "internal">,
+  >(
+    mutation: Mutation,
+    ...args: OptionalRestArgs<Mutation>
+  ): Effect.Effect<FunctionReturnType<Mutation>>;
 };
 
 export const ConfectMutationCtx = <
@@ -58,6 +68,10 @@ export type ConfectQueryCtx<ConfectDataModel extends GenericConfectDataModel> =
     db: ConfectDatabaseReader<ConfectDataModel>;
     auth: ConfectAuth;
     storage: ConfectStorageReader;
+    runQuery<Query extends FunctionReference<"query", "public" | "internal">>(
+      query: Query,
+      ...args: OptionalRestArgs<Query>
+    ): Effect.Effect<FunctionReturnType<Query>>;
   };
 
 export const ConfectQueryCtx = <
@@ -127,6 +141,10 @@ export const makeConfectQueryCtx = <
   db: new ConfectDatabaseReaderImpl(ctx.db, databaseSchemas),
   auth: new ConfectAuthImpl(ctx.auth),
   storage: new ConfectStorageReaderImpl(ctx.storage),
+  runQuery: <Query extends FunctionReference<"query", "public" | "internal">>(
+    query: Query,
+    ...queryArgs: OptionalRestArgs<Query>
+  ) => Effect.promise(() => ctx.runQuery(query, ...queryArgs)),
 });
 
 export const makeConfectMutationCtx = <
@@ -139,6 +157,16 @@ export const makeConfectMutationCtx = <
   auth: new ConfectAuthImpl(ctx.auth),
   storage: new ConfectStorageWriterImpl(ctx.storage),
   scheduler: new ConfectSchedulerImpl(ctx.scheduler),
+  runQuery: <Query extends FunctionReference<"query", "public" | "internal">>(
+    query: Query,
+    ...queryArgs: OptionalRestArgs<Query>
+  ) => Effect.promise(() => ctx.runQuery(query, ...queryArgs)),
+  runMutation: <
+    Mutation extends FunctionReference<"mutation", "public" | "internal">,
+  >(
+    mutation: Mutation,
+    ...mutationArgs: OptionalRestArgs<Mutation>
+  ) => Effect.promise(() => ctx.runMutation(mutation, ...mutationArgs)),
 });
 
 export const makeConfectActionCtx = <

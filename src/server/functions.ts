@@ -461,8 +461,6 @@ export const makeGenericFunctions = <
     };
   };
 
- 
-
   return {
     // Core Convex function builders
     queryGeneric,
@@ -476,11 +474,6 @@ export const makeGenericFunctions = <
     buildQuery,
     buildMutation,
     buildAction,
-
-    // Context service tags for use in custom handlers
-    QueryCtx: ConfectQueryCtx<DataModel>,
-    MutationCtx: ConfectMutationCtx<DataModel>,
-    ActionCtx: ConfectActionCtx<DataModel>,
 
     // Required args helpers
     withRequiredArgs,
