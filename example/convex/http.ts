@@ -1,4 +1,4 @@
-import { makeHttpRouter } from "@rjdellecese/confect/server";
+import { makeHttpRouter } from "confect-plus/server";
 
 import { HttpMiddleware } from "@effect/platform";
 import { flow } from "effect";

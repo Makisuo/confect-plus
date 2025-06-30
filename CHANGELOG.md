@@ -1,4 +1,4 @@
-# @rjdellecese/confect
+# confect-plus
 
 ## 0.0.26
 

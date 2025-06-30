@@ -55,7 +55,7 @@ export type TestConvexService = {
 } & TestConvexServiceWithoutIdentity;
 
 export const TestConvexService = Context.GenericTag<TestConvexService>(
-  "@rjdellecese/confect/TestConvexService",
+  "confect-plus/TestConvexService",
 );
 
 class TestConvexServiceImplWithoutIdentity

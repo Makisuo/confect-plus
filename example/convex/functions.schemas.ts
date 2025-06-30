@@ -1,4 +1,4 @@
-import { Id } from "@rjdellecese/confect/server";
+import { Id } from "confect-plus/server";
 import { Schema } from "effect";
 import { confectSchema } from "./schema";
 

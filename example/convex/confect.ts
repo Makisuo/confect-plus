@@ -9,7 +9,7 @@ import {
   type ConfectQueryCtx as ConfectQueryCtxType,
   type TableNamesInConfectDataModel,
   makeFunctions,
-} from "@rjdellecese/confect/server";
+} from "confect-plus/server";
 
 import { confectSchema } from "./schema";
 

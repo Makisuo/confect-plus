@@ -60,7 +60,7 @@ export const ConfectMutationCtx = <
   ConfectDataModel extends GenericConfectDataModel,
 >() =>
   Context.GenericTag<ConfectMutationCtx<ConfectDataModel>>(
-    "@rjdellecese/confect/ConfectMutationCtx",
+    "confect-plus/ConfectMutationCtx",
   );
 
 export type ConfectQueryCtx<ConfectDataModel extends GenericConfectDataModel> =
@@ -78,7 +78,7 @@ export const ConfectQueryCtx = <
   ConfectDataModel extends GenericConfectDataModel,
 >() =>
   Context.GenericTag<ConfectQueryCtx<ConfectDataModel>>(
-    "@rjdellecese/confect/ConfectQueryCtx",
+    "confect-plus/ConfectQueryCtx",
   );
 
 export type ConfectActionCtx<ConfectDataModel extends GenericConfectDataModel> =
@@ -129,7 +129,7 @@ export const ConfectActionCtx = <
   ConfectDataModel extends GenericConfectDataModel,
 >() =>
   Context.GenericTag<ConfectActionCtx<ConfectDataModel>>(
-    "@rjdellecese/confect/ConfectActionCtx",
+    "confect-plus/ConfectActionCtx",
   );
 
 export const makeConfectQueryCtx = <
